@@ -12,7 +12,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.net.URLEncoder;
 
 public class WeChatUtils {
 
@@ -48,7 +47,7 @@ public class WeChatUtils {
      * %s redirect_uri
      * %s scope
      */
-    private static final String API_AUTHOR_CODE = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=STATE#wechat_redirect";
+    public static final String API_AUTHOR_CODE = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=3d6be0a4035d839573b04816624a415e#wechat_redirect";
 
 
     /**
@@ -140,34 +139,6 @@ public class WeChatUtils {
         }
     }
 
-    public static JSONObject getAuthorizationCode(){
-
-        CloseableHttpResponse httpResponse = null;
-        try {
-            String redirect_uri = URLEncoder.encode("http://api.insdate.com.cn/index.html", "UTF-8");
-            HttpGet get = new HttpGet(String.format(API_AUTHOR_CODE, APP_ID, redirect_uri, "snsapi_userinfo"));
-            httpResponse = httpclient.execute(get);
-            HttpEntity httpEntity = httpResponse.getEntity();
-            String responseData = EntityUtils.toString(httpEntity);
-            int statusCode = httpResponse.getStatusLine().getStatusCode();
-            LOG.debug("获得微信授权登录 statusCode: {}, responseData: {}", statusCode, responseData);
-            JSONObject data = JSONObject.parseObject(responseData);
-            return data;
-            /*String ticket = data.getString("ticket");
-            long expiresIn = data.getLong("expires_in");
-
-            cache.setJsApiTicket(ticket);
-            cache.setJsApiTicketExpires(System.currentTimeMillis() + expiresIn * 1000);*/
-        } catch (Exception e) {
-            LOG.error("获得微信授权登录 Code异常", e);
-            //throw e;
-        } finally {
-            try {
-                httpResponse.close();
-            } catch (IOException e) {}
-        }
-        return null;
-    }
 
 
     public static String getSignature(String jsApiTicket, String noncestr, long timestamp, String url) throws Exception{
@@ -179,12 +150,11 @@ public class WeChatUtils {
 
     public static void main(String [] args){
         try {
-            //String token = getAccessToken();
-            //System.err.println("token = " + token);
+            String token = getAccessToken();
+            System.err.println("token = " + token);
 
-            //System.err.println("jsApiTicket = " + getJsApiTicket(token));
+            System.err.println("jsApiTicket = " + getJsApiTicket(token));
 
-            getAuthorizationCode();
         } catch (Exception e) {
             e.printStackTrace();
         }
