@@ -12,19 +12,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 public class WeChatUtils {
 
     /**
      * APP ID 应用ID
      */
-    private static final String APP_ID = "wxd709ce21db85e926";
+    private static final String APP_ID = "wx893db98985206df6";
     //private static final String APP_ID = "wx20082c1a905540a7";
 
     /**
      * App Secret 应用密钥
      */
-    private static final String APP_SECRET = "931ff3e147646e2b259d4e3a73d383ac";
+    private static final String APP_SECRET = "a7681bcfbd70c0beb497715bfa1fb35a";
     //private static final String APP_SECRET = "931ff3e147646e2b259d4e3a73d383ac";
 
     /**
@@ -43,11 +45,20 @@ public class WeChatUtils {
 
     /**
      * 微信授权登录获取code
-     * %s appId
+     * %s appid
      * %s redirect_uri
      * %s scope
      */
-    public static final String API_AUTHOR_CODE = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=%s&state=3d6be0a4035d839573b04816624a415e#wechat_redirect";
+    private static final String API_AUTHORIZE_URL = "https://open.weixin.qq.com/connect/oauth2/authorize?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_userinfo&state=state#wechat_redirect";
+
+
+    /**
+     * 微信授权登录根据code获取Access Token
+     * %s appid
+     * %s secret
+     * %s code
+     */
+    private static final String API_AUTHORIZE_ACCESS_TOKEN = "https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code";
 
 
     /**
@@ -58,6 +69,7 @@ public class WeChatUtils {
     private static final Logger LOG = LoggerFactory.getLogger(WeChatUtils.class);
 
     private static WeChatCache cache = new WeChatCache();
+    private static WXOauth2Token oauth2Token = new WXOauth2Token();
 
     /**
      * 获得通用接口访问令牌
@@ -74,6 +86,20 @@ public class WeChatUtils {
     }
 
     /**
+     * 获得微信授权登录接口访问令牌
+     *
+     * @return
+     * @throws Exception
+     */
+    public static String getAccessToken(String code) throws Exception {
+        if (oauth2Token.getAccessToken() == null ||
+                System.currentTimeMillis() > oauth2Token.getExpiresIn()) {
+            reGetAccessToken(code);
+        }
+        return oauth2Token.getAccessToken();
+    }
+
+    /**
      * 获得JS API 调用凭证
      *
      * @param accessToken
@@ -87,6 +113,8 @@ public class WeChatUtils {
         }
         return cache.getJsApiTicket();
     }
+
+
 
     private static void reGetAccessToken() throws Exception {
         HttpGet get = new HttpGet(String.format(API_ACCESS_TOKEN, APP_ID, APP_SECRET));
@@ -139,6 +167,60 @@ public class WeChatUtils {
         }
     }
 
+    /**
+     * 获取微信网页授权登录
+     * @param redirectUrl
+     * @return
+     */
+    public static String getAuthorizeUrl(String redirectUrl) throws Exception {
+        try {
+            redirectUrl = URLEncoder.encode(redirectUrl, "UTF-8");
+            return String.format(API_AUTHORIZE_URL, APP_ID, redirectUrl);
+        } catch (UnsupportedEncodingException e) {
+            LOG.error("获得微信JS API Ticket异常", e);
+            throw e;
+        }
+
+    }
+
+
+    /**
+     * 根据code获取微信网页授权登录AccessToken
+     * @param code
+     * @throws Exception
+     */
+    public static void reGetAccessToken(String code) throws Exception{
+        HttpGet get = new HttpGet(String.format(API_AUTHORIZE_ACCESS_TOKEN, APP_ID, APP_SECRET, code));
+        CloseableHttpResponse httpResponse = null;
+        try {
+            httpResponse = httpclient.execute(get);
+            HttpEntity httpEntity = httpResponse.getEntity();
+            String responseData = EntityUtils.toString(httpEntity);
+            int statusCode = httpResponse.getStatusLine().getStatusCode();
+            LOG.debug("获得微信授权登录AccessToken statusCode: {}, responseData: {}", statusCode, responseData);
+            JSONObject data = JSONObject.parseObject(responseData);
+
+            String accessToken = data.getString("access_token");
+            long expiresIn = data.getLong("expires_in");
+            String refreshToken = data.getString("refresh_token");
+            String openId = data.getString("openid");
+            String scope = data.getString("scope");
+
+            oauth2Token.setAccessToken(accessToken);
+            oauth2Token.setExpiresIn(System.currentTimeMillis() + expiresIn * 1000);
+            oauth2Token.setRefreshToken(refreshToken);
+            oauth2Token.setOpenId(openId);
+            oauth2Token.setScope(scope);
+        } catch (Exception e) {
+            LOG.error("获得微信授权登录AccessToken异常", e);
+            throw e;
+        } finally {
+            try {
+                httpResponse.close();
+            } catch (IOException e) {}
+        }
+    }
+
 
 
     public static String getSignature(String jsApiTicket, String noncestr, long timestamp, String url) throws Exception{
@@ -152,7 +234,6 @@ public class WeChatUtils {
         try {
             String token = getAccessToken();
             System.err.println("token = " + token);
-
             System.err.println("jsApiTicket = " + getJsApiTicket(token));
 
         } catch (Exception e) {

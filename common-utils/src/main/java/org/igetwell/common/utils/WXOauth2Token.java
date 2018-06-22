@@ -8,7 +8,7 @@ public class WXOauth2Token {
     // 网页授权接口调用凭证
     private String accessToken;
     // 凭证有效时长
-    private int expiresIn;
+    private long expiresIn;
     // 用于刷新凭证
     private String refreshToken;
     // 用户标识
@@ -24,11 +24,11 @@ public class WXOauth2Token {
         this.accessToken = accessToken;
     }
 
-    public int getExpiresIn() {
+    public long getExpiresIn() {
         return expiresIn;
     }
 
-    public void setExpiresIn(int expiresIn) {
+    public void setExpiresIn(long expiresIn) {
         this.expiresIn = expiresIn;
     }
 
