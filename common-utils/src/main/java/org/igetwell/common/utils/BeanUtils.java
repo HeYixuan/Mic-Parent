@@ -1,6 +1,7 @@
 package org.igetwell.common.utils;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
+import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -36,5 +37,31 @@ public class BeanUtils {
         }
 
         return result;
+    }
+
+
+    /**
+     * 将map转成xml
+     * @param params
+     * @return
+     */
+    public static String mapBean2Xml(Map<String, String> params) {
+        StringBuilder xml = new StringBuilder();
+        xml.append("<xml>");
+        Iterator var2 = params.entrySet().iterator();
+
+        while(var2.hasNext()) {
+            Map.Entry<String, String> entry = (Map.Entry)var2.next();
+            String key = (String)entry.getKey();
+            String value = (String)entry.getValue();
+            if (!StringUtils.isBlank(value)) {
+                xml.append("<").append(key).append(">");
+                xml.append((String)entry.getValue());
+                xml.append("</").append(key).append(">");
+            }
+        }
+
+        xml.append("</xml>");
+        return xml.toString();
     }
 }

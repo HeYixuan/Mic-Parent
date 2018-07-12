@@ -48,13 +48,13 @@ public class SignUtils {
     /**
      * 生成签名. 注意，若含有sign_type字段，必须和signType参数保持一致。
      *
-     * @param data 待签名数据
+     * @param params 待签名数据
      * @param key API密钥
      * @param signType 签名方式
      * @return 签名
      */
-    public static String createSign(final Map<String, String> data, String key, SignType signType) throws Exception {
-        Set<String> keySet = data.keySet();
+    public static String createSign(final Map<String, String> params, String key, SignType signType) throws Exception {
+        Set<String> keySet = params.keySet();
         String[] keyArray = keySet.toArray(new String[keySet.size()]);
         Arrays.sort(keyArray);
         StringBuilder sb = new StringBuilder();
@@ -62,8 +62,8 @@ public class SignUtils {
             if (k.equals(WXPayConstants.FIELD_SIGN)) {
                 continue;
             }
-            if (data.get(k).trim().length() > 0) // 参数值为空，则不参与签名
-                sb.append(k).append("=").append(data.get(k).trim()).append("&");
+            if (params.get(k).trim().length() > 0) // 参数值为空，则不参与签名
+                sb.append(k).append("=").append(params.get(k).trim()).append("&");
         }
         sb.append("key=").append(key);
         if (SignType.MD5.equals(signType)) {
@@ -102,4 +102,18 @@ public class SignUtils {
         String sign = createSign(params, signKey);
         return sign.equals(params.get("sign"));
     }
+
+    /**
+     * 校验签名是否正确.
+     *
+     * @param params   需要校验的参数Map
+     * @param signType 签名类型，如果为空，则默认为MD5
+     * @param signKey  校验的签名Key
+     * @return true - 签名校验成功，false - 签名校验失败
+     */
+    public static boolean checkSign(Map<String, String> params, String signKey, SignType signType) throws Exception {
+        String sign = createSign(params, signKey, signType);
+        return sign.equals(params.get("sign"));
+    }
+
 }

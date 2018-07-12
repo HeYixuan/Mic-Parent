@@ -1,10 +1,20 @@
 package org.igetwell.web;
 
+import org.apache.commons.io.FileUtils;
 import org.igetwell.common.utils.WeChatUtils;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.File;
+import java.io.IOException;
+import java.net.URLEncoder;
 
 @RestController
 @RequestMapping("/api")
@@ -33,5 +43,23 @@ public class TestController {
             //logger.error("获取微信授权登录AccessToken异常.{}",e);
         }
 
+    }
+
+
+
+    @RequestMapping(value = "/download", method = RequestMethod.GET)
+    /*@RequiresPermissions(permissionValue="download")*/
+    public ResponseEntity<byte[]> download(HttpServletRequest request) throws IOException {
+        String fileName = "-----.xlsx";
+        String path = request.getSession().getServletContext().getRealPath("/") + "download/" + fileName;
+        File file = new File(path);
+        //处理显示中文文件名的问题
+        fileName = URLEncoder.encode(fileName, "UTF-8");
+        //设置请求头内容,告诉浏览器代开下载窗口
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentDispositionFormData("attachment", fileName);
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        return new ResponseEntity<byte[]>(FileUtils.readFileToByteArray(file),
+                headers, HttpStatus.CREATED);
     }
 }
