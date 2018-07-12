@@ -2,9 +2,7 @@ package org.igetwell.common.utils;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
+import java.util.*;
 import java.util.regex.Pattern;
 
 public class IDCardUtils {
@@ -565,13 +563,21 @@ public class IDCardUtils {
             System.out.println("年龄不合法");
         }*/
 
-        for (int i=99;i>=10;i--){
-            String idcard = "43158219a5da2"+i;//18位
+        /*for (int i=99;i>=10;i--){
+            String idcard = "441621199301026721";//18位
             if (isValidatedAllIdcard(idcard)){
                 String F = getGenderByIdCard(idcard);
                 if (F.equals("F")){
                     System.err.println("身份号码正确："+idcard);
                 }
+            }
+        }*/
+
+        String idcard = "441324199503191621";//18位
+        if (isValidatedAllIdcard(idcard)){
+            String F = getGenderByIdCard(idcard);
+            if (F.equals("F")){
+                System.err.println("身份号码正确："+idcard);
             }
         }
 
