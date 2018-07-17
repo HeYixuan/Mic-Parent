@@ -49,8 +49,8 @@ public class HttpClientUtil {
      */    
     public String sendHttpPost(String httpUrl,String charset) {    
         HttpPost httpPost = new HttpPost(httpUrl);// 创建httpPost
-        
-        return sendHttpPost(httpPost,charset);    
+
+        return sendHttpPost(httpPost,charset);
     }    
         
     /**  

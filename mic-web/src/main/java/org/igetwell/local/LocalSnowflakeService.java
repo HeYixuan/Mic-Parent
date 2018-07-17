@@ -1,9 +1,12 @@
 package org.igetwell.local;
 
 
+import org.springframework.stereotype.Component;
+
 /**
  * Created by Kevin on 2015/7/11.
  */
+@Component
 public class LocalSnowflakeService {
 
     private long workerId = 0L;

@@ -1,25 +1,20 @@
 package org.igetwell.web;
 
-import org.apache.commons.io.FileUtils;
 import org.igetwell.common.utils.WeChatUtils;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.igetwell.local.LocalPay;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.File;
-import java.io.IOException;
-import java.net.URLEncoder;
 
 @RestController
 @RequestMapping("/api")
 public class TestController {
 
+    @Autowired
+    private LocalPay localPay;
 
     @RequestMapping("/getAuthLogin")
     public void testAuth(HttpServletResponse response){
@@ -45,10 +40,16 @@ public class TestController {
 
     }
 
+    @RequestMapping("/getPay")
+    public String getPay(HttpServletRequest request) {
+        String codeUrl = localPay.preOrder(request, "官网费用","GW201807162055","10");
+        return codeUrl;
+    }
 
 
-    @RequestMapping(value = "/download", method = RequestMethod.GET)
-    /*@RequiresPermissions(permissionValue="download")*/
+
+    /*@RequestMapping(value = "/download", method = RequestMethod.GET)
+    *//*@RequiresPermissions(permissionValue="download")*//*
     public ResponseEntity<byte[]> download(HttpServletRequest request) throws IOException {
         String fileName = "-----.xlsx";
         String path = request.getSession().getServletContext().getRealPath("/") + "download/" + fileName;
@@ -61,5 +62,5 @@ public class TestController {
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         return new ResponseEntity<byte[]>(FileUtils.readFileToByteArray(file),
                 headers, HttpStatus.CREATED);
-    }
+    }*/
 }

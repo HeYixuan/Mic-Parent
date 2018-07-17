@@ -2,6 +2,10 @@ package org.igetwell.common.utils;
 
 import com.thoughtworks.xstream.annotations.XStreamAlias;
 import org.apache.commons.lang3.StringUtils;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -63,5 +67,26 @@ public class BeanUtils {
 
         xml.append("</xml>");
         return xml.toString();
+    }
+
+
+    /**
+     * 将xml转成map
+     * @param xmlStr
+     * @return
+     */
+    public static Map<String, String> xmlBean2Map(String xmlStr) {
+        Document document = XmlKit.parse(xmlStr);
+        Element root = document.getDocumentElement();
+        Map<String, String> params = new HashMap();
+        NodeList list = root.getChildNodes();
+
+        for(int i = 0; i < list.getLength(); ++i) {
+            Node node = list.item(i);
+            params.put(node.getNodeName(), node.getTextContent());
+        }
+
+        params.remove("#text");
+        return params;
     }
 }

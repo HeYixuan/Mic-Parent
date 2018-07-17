@@ -2,9 +2,10 @@ package org.igetwell.common.utils;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.igetwell.common.constants.WXPayConstants;
 import org.igetwell.common.enums.SignType;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.*;
 
 /**
@@ -37,7 +38,8 @@ public class SignUtils {
         for (String key : sortedMap.keySet()) {
             String value = params.get(key);
             if (StringUtils.isNotEmpty(value) && !"sign".equals(key) && !"key".equals(key)) {
-                toSign.append(key + "=" + value + "&");
+//                toSign.append(key + "=" + value + "&");
+                toSign.append(key).append("=").append(params.get(key).trim()).append("&");
             }
         }
 
@@ -54,15 +56,13 @@ public class SignUtils {
      * @return 签名
      */
     public static String createSign(final Map<String, String> params, String key, SignType signType) throws Exception {
+        params.remove("sign"); //防止sign作参数,移除sign
         Set<String> keySet = params.keySet();
         String[] keyArray = keySet.toArray(new String[keySet.size()]);
         Arrays.sort(keyArray);
         StringBuilder sb = new StringBuilder();
         for (String k : keyArray) {
-            if (k.equals(WXPayConstants.FIELD_SIGN)) {
-                continue;
-            }
-            if (params.get(k).trim().length() > 0) // 参数值为空，则不参与签名
+            if (StringUtils.isNotEmpty(params.get(k)) && params.get(k).trim().length() > 0) // 参数值为空，则不参与签名
                 sb.append(k).append("=").append(params.get(k).trim()).append("&");
         }
         sb.append("key=").append(key);
@@ -70,8 +70,7 @@ public class SignUtils {
             return DigestUtils.md5Hex(sb.toString()).toUpperCase();
         }
         else if (SignType.HMACSHA256.equals(signType)) {
-            return DigestUtils.sha256Hex(sb.toString()).toUpperCase();
-            //return HMACSHA256(sb.toString(), key);
+            return HMACSHA256(sb.toString(), key);
         }
         else {
             throw new Exception(String.format("Invalid sign_type: %s", signType));
@@ -114,6 +113,26 @@ public class SignUtils {
     public static boolean checkSign(Map<String, String> params, String signKey, SignType signType) throws Exception {
         String sign = createSign(params, signKey, signType);
         return sign.equals(params.get("sign"));
+    }
+
+
+    /**
+     * 生成 HMACSHA256
+     * @param message 待处理数据
+     * @param key API密钥
+     * @return 加密结果
+     * @throws Exception
+     */
+    public static String HMACSHA256(String message, String key) throws Exception {
+        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
+        SecretKeySpec secret_key = new SecretKeySpec(key.getBytes("UTF-8"), "HmacSHA256");
+        sha256_HMAC.init(secret_key);
+        byte[] array = sha256_HMAC.doFinal(message.getBytes("UTF-8"));
+        StringBuilder sb = new StringBuilder();
+        for (byte item : array) {
+            sb.append(Integer.toHexString((item & 0xFF) | 0x100).substring(1, 3));
+        }
+        return sb.toString().toUpperCase();
     }
 
 }
