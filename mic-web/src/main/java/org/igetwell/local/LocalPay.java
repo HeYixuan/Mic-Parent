@@ -2,10 +2,7 @@ package org.igetwell.local;
 
 import org.igetwell.common.enums.JsApiType;
 import org.igetwell.common.enums.SignType;
-import org.igetwell.common.utils.BeanUtils;
-import org.igetwell.common.utils.HttpClientUtil;
-import org.igetwell.common.utils.ParaMap;
-import org.igetwell.common.utils.SignUtils;
+import org.igetwell.common.utils.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -281,7 +278,7 @@ public class LocalPay {
     private static String parseXml(Map<String, String> resultXml){
         String returnCode = resultXml.get("return_code");
         String resultCode = resultXml.get("result_code");
-        boolean isSuccess = "SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode);
+        boolean isSuccess = "SUCCESS".equalsIgnoreCase(returnCode) && "SUCCESS".equalsIgnoreCase(resultCode);
         if (!isSuccess) {
             throw new RuntimeException("统一支付失败！" +
                     "return_code:" + resultXml.get("return_code") + " " +
@@ -291,4 +288,42 @@ public class LocalPay {
         logger.info("统一下单调用结束！预支付交易标识：{}. {}", prepayId, resultXml.get("return_msg"));
         return prepayId;
     }
+
+
+    /**
+     * 处理微信回调
+     * @param xmlStr
+     * @return
+     */
+    public boolean notifyMethod(String xmlStr){
+        // 获取参数
+        Map<String, String> resultXml = BeanUtils.xmlBean2Map(xmlStr);
+        // 获取商户交易号
+        WxNotifyBean notifyBean = WxNotifyBean.create();
+        notifyBean.setAppId(resultXml.get("appid"));// 获取商户appId
+        notifyBean.setMchId(resultXml.get("mch_id"));// 获取商户号
+        notifyBean.setOpenId(resultXml.get("openid"));// 获取openId
+        notifyBean.setJsApiType(resultXml.get("trade_type"));// 获取交易类型
+        notifyBean.setFee(resultXml.get("total_fee")); // 获取支付金额
+        notifyBean.setTradeNo(resultXml.get("out_trade_no"));//获取商户交易号
+        notifyBean.setTransactionId(resultXml.get("transaction_id"));//获取微信支付订单号
+
+
+        try {
+            //TODO:需要做数据库记录交易订单号
+            boolean bool = SignUtils.checkSign(resultXml, paterKey, SignType.MD5);
+            if (!bool){
+                logger.error("微信支付回调验证签名错误！");
+                throw new RuntimeException("微信支付回调验证签名错误！");
+            }
+            String returnCode = resultXml.get("return_code");
+            String resultCode = resultXml.get("result_code");
+            return "SUCCESS".equalsIgnoreCase(returnCode) && "SUCCESS".equalsIgnoreCase(resultCode);
+        } catch (Exception e) {
+            logger.error("调用微信支付回调方法异常,商户订单号：{}. 微信支付订单号：{}. ", notifyBean.getTradeNo(), notifyBean.getTransactionId(), e);
+        }
+
+        return false;
+    }
+
 }
