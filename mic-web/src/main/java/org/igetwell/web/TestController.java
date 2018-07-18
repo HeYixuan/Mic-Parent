@@ -1,20 +1,15 @@
 package org.igetwell.web;
 
 import org.igetwell.common.utils.WeChatUtils;
-import org.igetwell.local.LocalPay;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api")
 public class TestController {
 
-    @Autowired
-    private LocalPay localPay;
 
     @RequestMapping("/getAuthLogin")
     public void testAuth(HttpServletResponse response){
@@ -40,11 +35,6 @@ public class TestController {
 
     }
 
-    @RequestMapping("/getPay")
-    public String getPay(HttpServletRequest request) {
-        String codeUrl = localPay.preOrder(request, "官网费用","GW201807162055","10");
-        return codeUrl;
-    }
 
 
 

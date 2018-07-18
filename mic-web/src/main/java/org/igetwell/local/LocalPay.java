@@ -1,5 +1,6 @@
 package org.igetwell.local;
 
+import org.igetwell.common.enums.JsApiType;
 import org.igetwell.common.enums.SignType;
 import org.igetwell.common.utils.BeanUtils;
 import org.igetwell.common.utils.HttpClientUtil;
@@ -41,11 +42,62 @@ public class LocalPay {
     private LocalSnowflakeService localSnowflakeService;
 
 
+    /**
+     * 扫码预付款下单
+     * @param request
+     * @param productName
+     * @param productId
+     * @param fee
+     * @return
+     */
+    public String scanOrder(HttpServletRequest request,String productName, String productId, String fee) {
+
+        String nonceStr = UUID.randomUUID().toString().replace("-", "");
+        String timestamp = System.currentTimeMillis()/1000 + "";
+        String tradeNo = attach + localSnowflakeService.nextId();
+
+        try {
+            String clientIp = IpKit.getIpAddr(request);
+
+            Map<String,String> paraMap= ParaMap.create("productId", productId)
+                    .put("body", productName)
+                    .put("tradeNo", tradeNo)
+                    .put("fee", fee)
+                    .put("nonceStr", nonceStr)
+                    .put("timestamp",timestamp)
+                    .put("clientIp", clientIp)
+                    .put("tradeType", "NATIVE")
+                    .put("notifyUrl","/pay/payNotify")
+                    .getData();
+
+            Map<String, String> resultXml = this.prePay(paraMap, SignType.MD5);
+            String returnCode = resultXml.get("return_code");
+            String resultCode = resultXml.get("result_code");
+            String codeUrl = resultXml.get("code_url");
+            boolean isSuccess = "SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode);
+            if (!isSuccess) {
+                throw new RuntimeException("统一支付失败！" +
+                        "return_code:" + resultXml.get("return_code") + " " +
+                        "return_msg:" + resultXml.get("return_msg"));
+            }
+            logger.info("统一下单调用结束！预支付交易标识：{}. {}", resultXml.get("prepay_id"), resultXml.get("return_msg"));
+
+            return codeUrl;
+        } catch (Exception e) {
+            logger.error("商户交易号：{} 预支付失败！", tradeNo, e);
+        }
+        return null;
+    }
 
     /**
-     * 预付款下单
+     * APP预付款下单
+     * @param request
+     * @param productName
+     * @param productId
+     * @param fee
+     * @return
      */
-    public String preOrder(HttpServletRequest request,String productName, String productId, String fee) {
+    public Map<String, String> jsAppOrder(HttpServletRequest request,String productName, String productId, String fee) {
         String nonceStr = UUID.randomUUID().toString().replace("-", "");
         String timestamp = System.currentTimeMillis()/1000 + "";
         String tradeNo = attach + localSnowflakeService.nextId();
@@ -58,22 +110,111 @@ public class LocalPay {
                 .put("nonceStr", nonceStr)
                 .put("timestamp",timestamp)
                 .put("clientIp", clientIp)
-                .put("tradeType", "NATIVE")
+                .put("tradeType", "APP")
                 .put("notifyUrl","/pay/payNotify")
                 .getData();
-
         try {
-            return this.prePay(paraMap, SignType.MD5);
+
+            Map<String, String> resultXml = this.prePay(paraMap, SignType.MD5);
+            String returnCode = resultXml.get("return_code");
+            String resultCode = resultXml.get("result_code");
+            boolean isSuccess = "SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode);
+            if (!isSuccess) {
+                throw new RuntimeException("统一支付失败！" +
+                        "return_code:" + resultXml.get("return_code") + " " +
+                        "return_msg:" + resultXml.get("return_msg"));
+            }
+            String prepayId = resultXml.get("prepay_id");
+            logger.info("统一下单调用结束！预支付交易标识：{}. {}", prepayId, resultXml.get("return_msg"));
+
+            Map<String, String> packageMap = new HashMap<>();
+            packageMap.put("appid", defaultAppId);
+            packageMap.put("partnerid", mchId);
+            packageMap.put("prepayid", prepayId);
+            packageMap.put("package", "Sign=WXPay");
+            packageMap.put("noncestr", nonceStr);
+            packageMap.put("timestamp", timestamp);
+            String sign = SignUtils.createSign(packageMap, paterKey, SignType.MD5);
+            packageMap.put("sign", sign);
+
         } catch (Exception e) {
-            logger.error("交易号：{} 预支付失败！", tradeNo, e);
+            logger.error("商户交易号：{} 预支付失败！", tradeNo, e);
+        }
+        return null;
+    }
+
+
+    /**
+     * 微信H5、APP内调起支付
+     * @param request
+     * @param jsApiType
+     * @param productName
+     * @param productId
+     * @param fee
+     * @return
+     */
+    public Map<String, String> preOrder(HttpServletRequest request, String openId, JsApiType jsApiType, String productName, String productId, String fee){
+        String nonceStr = UUID.randomUUID().toString().replace("-", "");
+        String timestamp = System.currentTimeMillis()/1000 + "";
+        String tradeNo = attach + localSnowflakeService.nextId();
+        String clientIp = IpKit.getIpAddr(request);
+
+        Map<String,String> paraMap= ParaMap.create("openId", openId)
+                .put("productId", productId)
+                .put("body", productName)
+                .put("tradeNo", tradeNo)
+                .put("fee", fee)
+                .put("nonceStr", nonceStr)
+                .put("timestamp",timestamp)
+                .put("clientIp", clientIp)
+                .put("tradeType", jsApiType.toString())
+                .put("notifyUrl","/pay/payNotify")
+                .getData();
+        try {
+            Map<String, String> resultXml = this.prePay(paraMap, SignType.MD5);
+            String prepayId = parseXml(resultXml);
+            Map<String, String> packageMap = new HashMap<>();
+            if (JsApiType.APP.equals(jsApiType)){
+                packageMap.put("appid", defaultAppId);
+                packageMap.put("partnerid", mchId);
+                packageMap.put("prepayid", prepayId);
+                packageMap.put("package", "Sign=WXPay");
+                packageMap.put("noncestr", nonceStr);
+                packageMap.put("timestamp", timestamp);
+                String sign = SignUtils.createSign(packageMap, paterKey, SignType.MD5);
+                packageMap.put("sign", sign);
+            }
+
+            if (JsApiType.JSAPI.equals(jsApiType)){
+                packageMap.put("appid", defaultAppId);
+                packageMap.put("timeStamp", timestamp);
+                packageMap.put("nonceStr", nonceStr);
+                packageMap.put("package", "prepay_id=" + prepayId);
+                packageMap.put("signType", "MD5");
+                String sign = SignUtils.createSign(packageMap, paterKey, SignType.MD5);
+                packageMap.put("paySign", sign);
+            }
+
+            if (JsApiType.NATIVE.equals(jsApiType)){
+                packageMap.put("codeUrl", resultXml.get("code_url"));
+            }
+
+            return packageMap;
+
+        } catch (Exception e) {
+            logger.error("商户交易号：{} 预支付失败！", tradeNo, e);
         }
         return null;
     }
 
     /**
      * 预支付接口
+     * @param hashMap
+     * @param signType
+     * @return
+     * @throws Exception
      */
-    public String prePay(Map<String, String> hashMap, SignType signType) throws Exception{
+    public Map<String, String> prePay(Map<String, String> hashMap, SignType signType) throws Exception{
         hashMap.put("appId", defaultAppId);
         hashMap.put("mchId", mchId);
 
@@ -86,22 +227,18 @@ public class LocalPay {
 
         Map<String, String> resultXml = BeanUtils.xmlBean2Map(result);
 
-        String returnCode = resultXml.get("return_code");
-        String resultCode = resultXml.get("result_code");
-        String codeUrl = resultXml.get("code_url"); //扫码支付url
-
-        boolean isSuccess = "SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode);
-        if (!isSuccess) {
-            throw new RuntimeException("统一支付失败！" +
-                    "return_code:" + resultXml.get("return_code") + " " +
-                    "return_msg:" + resultXml.get("return_msg"));
-        }
-        logger.info("统一下单调用结束！预支付交易标识：{}. {}", resultXml.get("prepay_id"), resultXml.get("return_msg"));
-        return codeUrl;
+        return resultXml;
 
     }
 
 
+    /**
+     * 签名入参
+     * @param hashMap
+     * @param signType
+     * @return
+     * @throws Exception
+     */
     private Map<String, String> createParams(Map<String, String> hashMap, SignType signType) throws Exception {
 
         Map<String, String> params = new HashMap<>();
@@ -126,8 +263,32 @@ public class LocalPay {
         return params;
     }
 
+    /**
+     * 请求下单地址
+     * @param params
+     * @return
+     */
     private static String pushOrder(Map<String, String> params) {
         final String unifiedOrderUrl = "https://api.mch.weixin.qq.com/pay/unifiedorder";
         return HttpClientUtil.getInstance().sendHttpPost(unifiedOrderUrl, BeanUtils.mapBean2Xml(params), "UTF-8");
+    }
+
+    /**
+     * 解析微信返回xml
+     * @param resultXml
+     * @return
+     */
+    private static String parseXml(Map<String, String> resultXml){
+        String returnCode = resultXml.get("return_code");
+        String resultCode = resultXml.get("result_code");
+        boolean isSuccess = "SUCCESS".equals(returnCode) && "SUCCESS".equals(resultCode);
+        if (!isSuccess) {
+            throw new RuntimeException("统一支付失败！" +
+                    "return_code:" + resultXml.get("return_code") + " " +
+                    "return_msg:" + resultXml.get("return_msg"));
+        }
+        String prepayId = resultXml.get("prepay_id");
+        logger.info("统一下单调用结束！预支付交易标识：{}. {}", prepayId, resultXml.get("return_msg"));
+        return prepayId;
     }
 }

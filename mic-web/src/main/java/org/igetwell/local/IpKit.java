@@ -8,7 +8,7 @@ public class IpKit {
 
     public static final String getIpAddr(final HttpServletRequest request) {
         /*if (request == null) {
-            throw (new Exception("getIpAddr method HttpServletRequest Object is null"));
+            throw new Exception("getIpAddr method HttpServletRequest Object is null");
         }*/
         String ipString = request.getHeader("x-forwarded-for");
         if ( StringUtils.isEmpty(ipString) || "unknown".equalsIgnoreCase(ipString)) {
