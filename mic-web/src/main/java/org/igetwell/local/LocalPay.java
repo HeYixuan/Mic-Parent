@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -64,7 +65,7 @@ public class LocalPay {
                     .put("timestamp",timestamp)
                     .put("clientIp", clientIp)
                     .put("tradeType", "NATIVE")
-                    .put("notifyUrl","/pay/payNotify")
+                    .put("notifyUrl","/WxPay/payNotify")
                     .getData();
 
             Map<String, String> resultXml = this.prePay(paraMap, SignType.MD5);
@@ -108,7 +109,7 @@ public class LocalPay {
                 .put("timestamp",timestamp)
                 .put("clientIp", clientIp)
                 .put("tradeType", "APP")
-                .put("notifyUrl","/pay/payNotify")
+                .put("notifyUrl","//WxPay/payNotify")
                 .getData();
         try {
 
@@ -165,7 +166,7 @@ public class LocalPay {
                 .put("timestamp",timestamp)
                 .put("clientIp", clientIp)
                 .put("tradeType", jsApiType.toString())
-                .put("notifyUrl","/pay/payNotify")
+                .put("notifyUrl","//WxPay/payNotify")
                 .getData();
         try {
             Map<String, String> resultXml = this.prePay(paraMap, SignType.MD5);
@@ -295,7 +296,9 @@ public class LocalPay {
      * @param xmlStr
      * @return
      */
-    public boolean notifyMethod(String xmlStr){
+    public String notifyMethod(String xmlStr){
+        String successXml = "<xml><return_code><![CDATA[SUCCESS]]></return_code><return_msg><![CDATA[OK]]></return_msg></xml>";
+        String failXml = "<xml><return_code><![CDATA[FAIL]]></return_code><return_msg><![CDATA[${return_msg}]]></return_msg></xml>";
         // 获取参数
         Map<String, String> resultXml = BeanUtils.xmlBean2Map(xmlStr);
         // 获取商户交易号
@@ -314,16 +317,22 @@ public class LocalPay {
             boolean bool = SignUtils.checkSign(resultXml, paterKey, SignType.MD5);
             if (!bool){
                 logger.error("微信支付回调验证签名错误！");
-                throw new RuntimeException("微信支付回调验证签名错误！");
+                return failXml.replace("${return_msg}", "微信支付回调验证签名错误！");
+                //throw new RuntimeException("微信支付回调验证签名错误！");
             }
             String returnCode = resultXml.get("return_code");
             String resultCode = resultXml.get("result_code");
-            return "SUCCESS".equalsIgnoreCase(returnCode) && "SUCCESS".equalsIgnoreCase(resultCode);
+            boolean isSuccess = "SUCCESS".equalsIgnoreCase(returnCode) && "SUCCESS".equalsIgnoreCase(resultCode);
+            if (isSuccess){
+                logger.info("用户公众ID：{} , 订单号：{} , 交易号：{} 微信支付成功！",
+                        notifyBean.getOpenId(), notifyBean.getTradeNo(), notifyBean.getTransactionId());
+                return successXml;
+            }
         } catch (Exception e) {
             logger.error("调用微信支付回调方法异常,商户订单号：{}. 微信支付订单号：{}. ", notifyBean.getTradeNo(), notifyBean.getTransactionId(), e);
         }
 
-        return false;
+        return successXml;
     }
 
 }

@@ -111,8 +111,9 @@ public class SignUtils {
      * @return true - 签名校验成功，false - 签名校验失败
      */
     public static boolean checkSign(Map<String, String> params, String signKey, SignType signType) throws Exception {
-        String sign = createSign(params, signKey, signType);
-        return sign.equals(params.get("sign"));
+        String sign = (String) params.get("sign");
+        String localSign = createSign(params, signKey, signType);
+        return sign.equals(localSign);
     }
 
 
