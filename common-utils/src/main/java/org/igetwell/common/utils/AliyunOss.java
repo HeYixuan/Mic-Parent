@@ -31,9 +31,9 @@ public class AliyunOss {
     private static String BACKET_NAME;
     //初始化属性
     static{
-        ENDPOINT = "oss-cn-beijing.aliyuncs.com";
-        ACCESS_KEY_ID = "LTAIHn6oIue9yxds";
-        ACCESS_KEY_SECRET = "38R8crqNQKNP5AT6H7ZOLy9IZ7sQRG";
+        ENDPOINT = "";
+        ACCESS_KEY_ID = "";
+        ACCESS_KEY_SECRET = "";
         BACKET_NAME = "testabc";
     }
 
