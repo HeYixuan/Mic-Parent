@@ -10,17 +10,23 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.http.conn.util.PublicSuffixMatcher;
 import org.apache.http.conn.util.PublicSuffixMatcherLoader;
+import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
+import org.apache.http.entity.mime.content.FileBody;
+import org.apache.http.entity.mime.content.StringBody;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * HttpClient工具类
@@ -89,9 +95,80 @@ public class HttpClientUtil {
             e.printStackTrace();    
         }    
         return sendHttpPost(httpPost,charset);    
-    }    
-        
+    }
 
+
+    /**
+     * 上传文件
+     *
+     * @param url
+     *            服务器地址
+     * @param localFilePath
+     *            本地文件路径
+     * @param serverFieldName
+     * @param params
+     * @return
+     * @throws Exception
+     */
+    public String multipartFile(String url, String localFilePath, String serverFieldName, Map<String, String> params){
+        String responseContent = null;
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        CloseableHttpClient httpClient = null;
+        CloseableHttpResponse response = null;
+        HttpEntity entity = null;
+        try {
+            HttpPost httppost = new HttpPost(url);
+            FileBody binFileBody = new FileBody(new File(localFilePath));
+
+            MultipartEntityBuilder multipartEntityBuilder = MultipartEntityBuilder
+                    .create();
+            // add the file params
+            multipartEntityBuilder.addPart(serverFieldName, binFileBody);
+            // 设置上传的其他参数
+            setUploadParams(multipartEntityBuilder, params);
+
+            HttpEntity reqEntity = multipartEntityBuilder.build();
+            httppost.setEntity(reqEntity);
+
+            response = httpclient.execute(httppost);
+
+            entity = response.getEntity();
+            responseContent = EntityUtils.toString(entity, "UTF-8");
+        }catch (Exception e){
+
+        } finally {
+            try {
+                // 关闭连接,释放资源
+                if (response != null) {
+                    response.close();
+                }
+                if (httpClient != null) {
+                    httpClient.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return responseContent;
+    }
+
+    /**
+     * 设置上传文件时所附带的其他参数
+     *
+     * @param multipartEntityBuilder
+     * @param params
+     */
+    private void setUploadParams(MultipartEntityBuilder multipartEntityBuilder,
+                                 Map<String, String> params) {
+        if (params != null && params.size() > 0) {
+            Set<String> keys = params.keySet();
+            for (String key : keys) {
+                multipartEntityBuilder
+                        .addPart(key, new StringBody(params.get(key),
+                                ContentType.TEXT_PLAIN));
+            }
+        }
+    }
 
     /**  
      * 发送Post请求  

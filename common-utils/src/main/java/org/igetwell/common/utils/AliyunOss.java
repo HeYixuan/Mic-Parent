@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -28,13 +28,13 @@ public class AliyunOss {
     //阿里云API的密钥Access Key Secret
     private static String ACCESS_KEY_SECRET;
     //阿里云API的bucket名称
-    private static String BACKET_NAME;
+    private static String BUCKET_NAME;
     //初始化属性
     static{
-        ENDPOINT = "";
+        ENDPOINT = "oss-cn-beijing.aliyuncs.com";
         ACCESS_KEY_ID = "";
         ACCESS_KEY_SECRET = "";
-        BACKET_NAME = "testabc";
+        BUCKET_NAME = "oss-fit";
     }
 
     /**
@@ -99,14 +99,15 @@ public class AliyunOss {
 
 
     /**
-     * 上传图片至OSS
+     * 上传文件到阿里云OSS
      * @param file
      * @return
      */
     public static PutObjectResult multipartUpload(OSSClient client, String bucketName, String key, File file) {
+        FileInputStream fis = null;
         try {
             //以输入流的形式上传文件
-            FileInputStream fis = new FileInputStream(file);
+            fis = new FileInputStream(file);
             //文件大小
             Long fileSize = file.length();
             //创建上传Object的Metadata
@@ -128,21 +129,63 @@ public class AliyunOss {
             PutObjectResult putResult = client.putObject(bucketName, key, fis, metadata);
             return putResult;
         } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("上传阿里云OSS服务器异常." + e.getMessage(), e);
+            logger.error("上传阿里云OSS服务器异常.", e);
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    logger.error("关闭IO异常：" + e);
+                }
+            }
         }
         return null;
     }
 
 
     /**
-     *  /**
+     * 上传文件到阿里云OSS
+     * @param client
+     * @param bucketName
+     * @param key
+     * @param fileName
+     * @param inputStream
+     * @param length
+     * @return
+     */
+    public static boolean multipartUpload(OSSClient client, String bucketName, String key, String fileName, InputStream inputStream, long length){
+        try{
+            ObjectMetadata objectMetadata = new ObjectMetadata();
+            objectMetadata.setContentLength(length);
+            objectMetadata.setCacheControl("no-cache");
+            objectMetadata.setHeader("Pragma", "no-cache");
+            objectMetadata.setContentType(getContentType(fileName));
+            objectMetadata.setContentDisposition("inline;filename=" + fileName);
+            client.putObject(bucketName, key, inputStream, objectMetadata);
+            logger.info("上传文件到阿里云成功：" + key);
+            return true;
+        } catch (Exception e){
+            logger.error("上传文件到阿里云异常 OSSException:" + e);
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (IOException e) {
+                    logger.error("关闭IO异常：" + e);
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     *
      * @param key 指明文件名+扩展名
      * @param partFile 要上传的文件
      * @return 上传后的文件名
      * @throws IOException
      */
-    private String multipartUpload(String key, File partFile, OSSClient client,String bucketName) throws IOException {
+    public static String multipartUpload(String key, File partFile, OSSClient client,String bucketName) throws IOException {
         // 开始Multipart Upload
         InitiateMultipartUploadRequest initiateMultipartUploadRequest = new InitiateMultipartUploadRequest(bucketName, key);
         InitiateMultipartUploadResult initiateMultipartUploadResult = client.initiateMultipartUpload(initiateMultipartUploadRequest);
@@ -182,7 +225,6 @@ public class AliyunOss {
         // 完成分块上传
         CompleteMultipartUploadResult completeMultipartUploadResult =
                 client.completeMultipartUpload(completeMultipartUploadRequest);
-        client.shutdown();
         // 获得location
         return completeMultipartUploadResult.getKey();
     }
@@ -227,11 +269,17 @@ public class AliyunOss {
         return "image/jpeg";
     }
 
-    public static URL getUrl(OSSClient ossClient,String key) {
-        // 设置URL过期时间为10年
-        Date expiration = new Date(new Date().getTime() + 3600l * 1000 * 24 * 365 * 10);
+    /**
+     * 获取签名Url
+     * @param ossClient
+     * @param key 上传文件的key
+     * @return
+     */
+    public static String getUrl(OSSClient ossClient, String key) {
+        // 设置URL过期时间为2天
+        Date expiration = new Date(new Date().getTime() + 3600l * 1000 * 24 * 2);
         // 生成URL
-        URL url = ossClient.generatePresignedUrl(BACKET_NAME, key, expiration);
+        String url = ossClient.generatePresignedUrl(BUCKET_NAME, key, expiration).toString();
         return url;
     }
 
@@ -259,13 +307,18 @@ public class AliyunOss {
         ossClient().shutdown();
     }
 
-    public static void main(String [] args){
+    public static void main(String [] args) throws IOException {
         OSSClient client = ossClient();
-//        deleteBucket(client, BACKET_NAME);
-        String backetName = createBucketName(client, BACKET_NAME);
-        String key = "abc";
+        String bucketName = createBucketName(client, BUCKET_NAME);
+        String key = "abcd.png";
         File file = new File("D://20180716_08.png");
-        PutObjectResult result = multipartUpload(client, backetName, key, file);
-        System.err.println(result.toString());
+        //String keyName = multipartUpload(key, file, client, bucketName);
+        //System.err.println("keyName:" +keyName);
+        //PutObjectResult result = multipartUpload(client, bucketName, key, file);
+        InputStream inputStream = new FileInputStream(file);
+        boolean bool  = multipartUpload(client, bucketName, key, file.getName(), inputStream, file.length());
+        System.err.println(bool);
+        String url = getUrl(client, key);
+        System.err.println(url);
     }
 }
