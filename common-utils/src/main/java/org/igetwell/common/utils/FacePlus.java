@@ -85,7 +85,7 @@ public class FacePlus {
      *                  默认值为 100
      * @return
      */
-    public static JSONObject getBeautifya(File file, String whitening, String smoothing){
+    public static JSONObject getBeautify(File file, String whitening, String smoothing){
         JSONObject json = null;
         try{
             Map<String, String> params = new HashMap<>();
@@ -111,8 +111,8 @@ public class FacePlus {
 
     public static void main(String [] args) throws IOException {
         File file = new File("D://微信图片_20180723153217.jpg");
-        File filea = new File("D://c.jpg"); //创建美艳后临时文件
-        JSONObject json = getBeautifya(file, "100", "100");
+        File filea = new File("D://c.jpg"); //创建美颜后临时文件
+        JSONObject json = getBeautify(file, "100", "100");
 
         Files.write(Paths.get(filea.getCanonicalPath()), Base64.decodeBase64(json.getString("result")),StandardOpenOption.CREATE_NEW);
 
