@@ -51,7 +51,7 @@ public class LocalPay {
     public String scanOrder(HttpServletRequest request,String productName, String productId, String fee) {
 
         String nonceStr = UUID.randomUUID().toString().replace("-", "");
-        String timestamp = System.currentTimeMillis()/1000 + "";
+        String timestamp = String.valueOf(System.currentTimeMillis()/1000);
         String tradeNo = attach + localSnowflakeService.nextId();
 
         try {
@@ -97,7 +97,7 @@ public class LocalPay {
      */
     public Map<String, String> jsAppOrder(HttpServletRequest request,String productName, String productId, String fee) {
         String nonceStr = UUID.randomUUID().toString().replace("-", "");
-        String timestamp = System.currentTimeMillis()/1000 + "";
+        String timestamp = String.valueOf(System.currentTimeMillis()/1000);
         String tradeNo = attach + localSnowflakeService.nextId();
         String clientIp = IpKit.getIpAddr(request);
 
@@ -153,7 +153,7 @@ public class LocalPay {
      */
     public Map<String, String> preOrder(HttpServletRequest request, String openId, JsApiType jsApiType, String productName, String productId, String fee){
         String nonceStr = UUID.randomUUID().toString().replace("-", "");
-        String timestamp = System.currentTimeMillis()/1000 + "";
+        String timestamp = String.valueOf(System.currentTimeMillis()/1000);
         String tradeNo = attach + localSnowflakeService.nextId();
         String clientIp = IpKit.getIpAddr(request);
 
