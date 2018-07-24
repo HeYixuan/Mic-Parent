@@ -6,10 +6,8 @@ import com.aliyun.oss.OSSException;
 import com.aliyun.oss.model.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -82,7 +80,6 @@ public class AliyunOss {
      */
     public static void delete(OSSClient ossClient, String bucketName, String key){
         ossClient.deleteObject(bucketName, key);
-        closeOss();
     }
 
     /**
@@ -94,7 +91,6 @@ public class AliyunOss {
     public static void deleteList(OSSClient ossClient, String bucketName, List<String> keys){
         DeleteObjectsResult deleteObjectsResult = ossClient.deleteObjects(new DeleteObjectsRequest(bucketName).withKeys(keys));
         List<String> deletedObjects = deleteObjectsResult.getDeletedObjects();
-        closeOss();
     }
 
 
@@ -179,7 +175,7 @@ public class AliyunOss {
     }
 
     /**
-     *
+     * 分片上传文件到阿里云OSS
      * @param key 指明文件名+扩展名
      * @param partFile 要上传的文件
      * @return 上传后的文件名
@@ -227,6 +223,90 @@ public class AliyunOss {
                 client.completeMultipartUpload(completeMultipartUploadRequest);
         // 获得location
         return completeMultipartUploadResult.getKey();
+    }
+
+
+    /**
+     * 下载文件
+     * @param client
+     * @param key
+     * @param bucketName
+     */
+    public static void download(OSSClient client, String key, String bucketName) {
+        try {
+            OSSObject ossObject = client.getObject(bucketName, key);
+            if (ossObject == null) {
+                logger.warn("download aliyun oss is empty,bucketName is " + bucketName + " and key is " + key);
+                return;
+            }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(ossObject.getObjectContent()));
+            while (true) {
+                String line = reader.readLine();
+                if (line == null) break;
+            }
+            reader.close();
+        } catch (OSSException e) {
+            logger.error("下载文本内容异常,key=" + key + ",OSSException:" + e);
+        } catch (ClientException e) {
+            logger.error("下载文本内容异常,key=" + key + ",ClientException:" + e);
+        } catch (Exception e) {
+            logger.error("下载文本内容异常,key=" + key + ",Exception:" + e);
+        }
+    }
+
+    public static void download(OSSClient client, String key, String bucketName, String localFile,String checkPointFile){
+        try{
+            // 下载请求，10个任务并发下载，启动断点续传。
+            DownloadFileRequest downloadFileRequest = new DownloadFileRequest(bucketName, key);
+            downloadFileRequest.setDownloadFile(localFile);
+            downloadFileRequest.setPartSize(1 * 1024 * 1024);
+            downloadFileRequest.setTaskNum(10);
+            downloadFileRequest.setEnableCheckpoint(true);
+            downloadFileRequest.setCheckpointFile(checkPointFile);
+            // 下载文件。
+            DownloadFileResult downloadRes = client.downloadFile(downloadFileRequest);
+            // 下载成功时，会返回文件元信息。
+            downloadRes.getObjectMetadata();
+        } catch (Throwable throwable) {
+            logger.error("断点续传下载异常,key=" + key + ",OSSException:" + throwable);
+        }
+
+    }
+
+
+    /**
+     * 下载文件
+     * @param client
+     * @param key
+     * @param bucketName
+     * @param file
+     */
+    public static void download(OSSClient client, String key, String bucketName, File file) {
+        try {
+            client.getObject(new GetObjectRequest(bucketName, key), file);
+        } catch (OSSException e) {
+            logger.error("下载文本内容异常,key=" + key + ",OSSException:" + e);
+        } catch (ClientException e) {
+            logger.error("下载文本内容异常,key=" + key + ",ClientException:" + e);
+        } catch (Exception e) {
+            logger.error("下载文本内容异常,key=" + key + ",Exception:" + e);
+        }
+    }
+
+    /**
+     *  下载文件
+     *
+     * @param client  OSSClient对象
+     * @param bucketName  Bucket名
+     * @param key  上传到OSS起的名
+     * @param filename 文件下载到本地保存的路径
+     * @throws OSSException
+     * @throws ClientException
+     */
+    private static void downloadFile(OSSClient client, String bucketName, String key, String filename)
+            throws OSSException, ClientException {
+        client.getObject(new GetObjectRequest(bucketName, key),
+                new File(filename));
     }
 
 
@@ -284,23 +364,6 @@ public class AliyunOss {
     }
 
     /**
-     *  下载文件
-     *
-     * @param client  OSSClient对象
-     * @param bucketName  Bucket名
-     * @param key  上传到OSS起的名
-     * @param filename 文件下载到本地保存的路径
-     * @throws OSSException
-     * @throws ClientException
-     */
-    private static void downloadFile(OSSClient client, String bucketName, String key, String filename)
-            throws OSSException, ClientException {
-        client.getObject(new GetObjectRequest(bucketName, key),
-                new File(filename));
-    }
-
-
-    /**
      * 关闭oss服务
      */
     public static void closeOss(){
@@ -308,17 +371,25 @@ public class AliyunOss {
     }
 
     public static void main(String [] args) throws IOException {
+        //测试上传
         OSSClient client = ossClient();
         String bucketName = createBucketName(client, BUCKET_NAME);
-        String key = "abcd.png";
-        File file = new File("D://20180716_08.png");
+        String key = "abcd.jpg";
+        // file = new File("D://17594241441223.jpg");
         //String keyName = multipartUpload(key, file, client, bucketName);
         //System.err.println("keyName:" +keyName);
         //PutObjectResult result = multipartUpload(client, bucketName, key, file);
-        InputStream inputStream = new FileInputStream(file);
-        boolean bool  = multipartUpload(client, bucketName, key, file.getName(), inputStream, file.length());
-        System.err.println(bool);
+        //System.err.println("result:" + result.getETag());
+        //InputStream inputStream = new FileInputStream(file);
+        //boolean bool  = multipartUpload(client, bucketName, key, file.getName(), inputStream, file.length());
+        //System.err.println(bool);
+
         String url = getUrl(client, key);
         System.err.println(url);
+        //测试下载
+        File downloadLocalFile = new File("D://jack.png");
+        File checkPointFile = new File("D://jack.ucp");
+        download(client, key, bucketName, downloadLocalFile.getPath(), checkPointFile.getPath());
+        //download(client, key, BUCKET_NAME, downloadLocalFile);
     }
 }
