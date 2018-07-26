@@ -94,8 +94,8 @@ public class HttpClientUtil {
         }    
         try {    
             httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs, "UTF-8"));    
-        } catch (Exception e) {    
-            e.printStackTrace();    
+        } catch (Exception e) {
+            logger.error("sendHttpPost请求失败：", e);
         }    
         return sendHttpPost(httpPost,charset);    
     }
