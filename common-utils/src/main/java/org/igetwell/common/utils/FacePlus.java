@@ -97,7 +97,9 @@ public class FacePlus {
             params.put("api_secret", ACCESS_KEY_SECRET);
             params.put("whitening", whitening);
             params.put("smoothing", smoothing);
-            String str = HttpClientUtil.getInstance().multipartFile(BEAUTIFY_URL, file.getPath(), "image_file", params);
+            Map<String, File> fileMap = new HashMap<>();
+            fileMap.put("image_file", file);
+            String str = HttpClientUtil.getInstance().multipartFile(BEAUTIFY_URL, params, fileMap, "UTF-8");
             json = JSON.parseObject(str);
             if (!json.containsKey("result")){
                 throw new RuntimeException(str);
@@ -114,7 +116,7 @@ public class FacePlus {
         File filea = new File("D://c.jpg"); //创建美颜后临时文件
         JSONObject json = getBeautify(file, "100", "100");
 
-        Files.write(Paths.get(filea.getCanonicalPath()), Base64.decodeBase64(json.getString("result")),StandardOpenOption.CREATE_NEW);
+        Files.write(Paths.get(filea.getCanonicalPath()), Base64.decodeBase64(json.getString("result")), StandardOpenOption.CREATE_NEW);
 
         System.err.println(json);
     }
